@@ -26,7 +26,7 @@ export default function SimulateTriggerButton({ onComplete }: SimulateTriggerBut
     setShowPanel(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/simulate-trigger', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/simulate-trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const ML_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001'
+const ML_URL = process.env.ML_API_URL
 
 const mlApi = axios.create({
     baseURL: ML_URL,
