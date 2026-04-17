@@ -1,0 +1,11 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Discard Google Maps API visual errors for prototypes */
+.gm-err-container { display: none !important; }
+.gm-err-content { display: none !important; }
+.gm-err-autocomplete { display: none !important; }
+.gm-style-cc { display: none !important; }
+.gm-style iframe + div { border:none!important; }
+.dismissButton { display: none !important; }

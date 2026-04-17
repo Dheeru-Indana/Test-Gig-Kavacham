@@ -1,0 +1,28 @@
+{
+  "model": "TwoStage_IsolationForest_XGBoost_LIME",
+  "accuracy": 0.9633,
+  "f1_weighted": 0.9634,
+  "cv_f1_mean": 0.9654,
+  "cv_f1_std": 0.0081,
+  "features": [
+    "gps_zone_mismatch",
+    "gps_jump_detected",
+    "gps_accuracy_low",
+    "vpn_detected",
+    "weather_claim_consistency",
+    "historical_dcs_deviation",
+    "claim_timing_anomaly",
+    "payout_frequency_score",
+    "duplicate_event_attempt",
+    "platform_inactivity_hours",
+    "unusual_claim_amount"
+  ],
+  "stage1": "IsolationForest (unsupervised anomaly)",
+  "stage2": "XGBoost Classifier (supervised decision)",
+  "explainability": "LIME per-claim (recreated at inference)",
+  "thresholds": {
+    "pass": "score < 30",
+    "review": "30 <= score <= 60",
+    "fail": "score > 60"
+  }
+}

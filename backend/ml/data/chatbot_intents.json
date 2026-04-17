@@ -1,0 +1,229 @@
+{
+  "intents": [
+    {
+      "intent": "policy_coverage",
+      "examples": [
+        "What does my policy cover",
+        "What am I covered for",
+        "Tell me what my insurance includes",
+        "What does Shield Plus protect me from",
+        "What events trigger a payout",
+        "Am I covered for rainfall",
+        "Does my policy cover AQI",
+        "What is in my protection plan",
+        "Tell me about my coverage",
+        "What am I protected against"
+      ]
+    },
+    {
+      "intent": "policy_exclusions",
+      "examples": [
+        "What is not covered",
+        "What does my policy exclude",
+        "What wont GigKavacham pay for",
+        "Are vehicle repairs covered",
+        "What are the exclusions",
+        "Tell me what is excluded",
+        "What claims will be rejected",
+        "Is fuel covered",
+        "Does it cover medical expenses",
+        "What losses are not eligible"
+      ]
+    },
+    {
+      "intent": "policy_cancel",
+      "examples": [
+        "How do I cancel my policy",
+        "I want to stop my insurance",
+        "Cancel my plan",
+        "How to deactivate my shield",
+        "I want to end my coverage",
+        "How do I remove my policy",
+        "Stop my weekly premium",
+        "I do not want insurance anymore",
+        "How to quit GigKavacham",
+        "Cancel my subscription"
+      ]
+    },
+    {
+      "intent": "policy_switch",
+      "examples": [
+        "How do I switch plans",
+        "I want to upgrade my plan",
+        "Can I change to Shield Max",
+        "How to downgrade my policy",
+        "I want a different plan",
+        "Switch me to Shield Plus",
+        "Can I move to a better plan",
+        "How to upgrade my coverage",
+        "I want more coverage",
+        "Change my plan"
+      ]
+    },
+    {
+      "intent": "premium_why",
+      "examples": [
+        "Why is my premium this amount",
+        "Why am I paying 99 rupees",
+        "How is my weekly cost calculated",
+        "Why is my price so high",
+        "What determines my premium",
+        "Why does my plan cost this much",
+        "Explain my weekly charge",
+        "What factors affect my premium",
+        "Why is it 49 per week",
+        "I do not understand my pricing"
+      ]
+    },
+    {
+      "intent": "premium_reduce",
+      "examples": [
+        "How can I reduce my premium",
+        "Can I get a cheaper plan",
+        "How to lower my weekly cost",
+        "Is there a discount",
+        "How to save money on my policy",
+        "Can I pay less",
+        "How to get a cheaper rate",
+        "What can I do to lower my price",
+        "How to reduce my weekly charge",
+        "I want to pay less"
+      ]
+    },
+    {
+      "intent": "payout_why",
+      "examples": [
+        "Why did I get paid",
+        "Why was money sent to my UPI",
+        "What caused my payout",
+        "Why did I receive money",
+        "Explain my last payment",
+        "Why was a payout triggered",
+        "What event paid me",
+        "I received money why",
+        "What disruption caused my payout",
+        "Why was a claim processed"
+      ]
+    },
+    {
+      "intent": "payout_when",
+      "examples": [
+        "When will I get paid",
+        "How long does payout take",
+        "When will money reach my UPI",
+        "How fast is the payout",
+        "When will the transfer happen",
+        "How soon will I receive money",
+        "What is the payout timeline",
+        "How quickly does GigKavacham pay",
+        "When can I expect payment",
+        "How many minutes for payout"
+      ]
+    },
+    {
+      "intent": "payout_failed",
+      "examples": [
+        "My payout failed",
+        "I did not receive my money",
+        "Payment did not come through",
+        "My UPI transfer failed",
+        "Where is my money",
+        "Payment not received",
+        "My claim was approved but no money",
+        "UPI credit did not happen",
+        "Why did my payment fail",
+        "Money not credited to my account"
+      ]
+    },
+    {
+      "intent": "dcs_what",
+      "examples": [
+        "What is DCS",
+        "What is the disruption composite score",
+        "Explain DCS to me",
+        "What does the DCS number mean",
+        "What is my zone score",
+        "What is the risk score",
+        "Tell me about DCS",
+        "How is DCS calculated",
+        "What does DCS stand for",
+        "Explain the disruption score"
+      ]
+    },
+    {
+      "intent": "dcs_high_risk",
+      "examples": [
+        "Why is my zone high risk",
+        "My DCS is high what does that mean",
+        "Why is my score elevated",
+        "What does elevated risk mean",
+        "Why is my zone in danger",
+        "DCS is showing red what happens",
+        "My area shows high disruption",
+        "Why is my zone flagged",
+        "What does payout trigger zone mean",
+        "My zone is at risk what do I do"
+      ]
+    },
+    {
+      "intent": "fraud_flagged",
+      "examples": [
+        "Why was my claim flagged",
+        "My claim is under review",
+        "Why is there a fraud check on my claim",
+        "My payout is held for review",
+        "Why was I flagged for fraud",
+        "What does claim under review mean",
+        "Why is my payout delayed for verification",
+        "My claim was blocked",
+        "Why is my payment held",
+        "Fraud review what happens"
+      ]
+    },
+    {
+      "intent": "platform_how",
+      "examples": [
+        "How does GigKavacham work",
+        "Explain how this platform works",
+        "What is GigKavacham",
+        "Tell me about parametric insurance",
+        "How does the platform operate",
+        "Explain the insurance model",
+        "How does automatic payout work",
+        "What is zero touch claims",
+        "How does GigKavacham protect me",
+        "Explain the whole system"
+      ]
+    },
+    {
+      "intent": "shield_score",
+      "examples": [
+        "What is my shield score",
+        "What does the shield score mean",
+        "Explain shield score",
+        "How is shield score calculated",
+        "What is the score out of 100 on my profile",
+        "How do I improve my shield score",
+        "What affects my shield score",
+        "Why is my shield score 75",
+        "How does shield score affect my premium",
+        "What is a good shield score"
+      ]
+    },
+    {
+      "intent": "city_tier",
+      "examples": [
+        "What is my city tier",
+        "What does Tier 1 mean",
+        "Explain city tier classification",
+        "What is Tier 3",
+        "How is my city classified",
+        "What tier is my city",
+        "Why am I in Tier 2",
+        "How does city tier affect my plan",
+        "What is the difference between tiers",
+        "Tier 1 vs Tier 3 what changes"
+      ]
+    }
+  ]
+}

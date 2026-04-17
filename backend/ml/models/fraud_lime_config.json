@@ -1,0 +1,23 @@
+{
+  "feature_names": [
+    "gps_zone_mismatch",
+    "gps_jump_detected",
+    "gps_accuracy_low",
+    "vpn_detected",
+    "weather_claim_consistency",
+    "historical_dcs_deviation",
+    "claim_timing_anomaly",
+    "payout_frequency_score",
+    "duplicate_event_attempt",
+    "platform_inactivity_hours",
+    "unusual_claim_amount",
+    "isolation_forest_score"
+  ],
+  "class_names": [
+    "pass",
+    "review",
+    "fail"
+  ],
+  "mode": "classification",
+  "note": "Recreate LimeTabularExplainer at inference using X_train_aug shape and these feature names"
+}

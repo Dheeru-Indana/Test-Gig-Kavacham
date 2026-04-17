@@ -1,0 +1,10 @@
+{
+  "sbert_model": "all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "num_intents": 15,
+  "total_examples": 150,
+  "similarity_threshold": 0.35,
+  "fallback_threshold": 0.3,
+  "method": "SBERT cosine similarity + LR hybrid",
+  "cv_f1": 0.8529
+}

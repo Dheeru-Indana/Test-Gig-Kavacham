@@ -1,0 +1,23 @@
+{
+  "model": "VotingEnsemble_GaussianNB_MLP",
+  "accuracy": 0.8225,
+  "cv_f1": 0.8331,
+  "features": [
+    "tier_enc",
+    "platform_enc",
+    "month_of_year",
+    "weekly_earnings",
+    "flood_risk_score",
+    "aqi_risk_score",
+    "heat_risk_score",
+    "is_monsoon",
+    "is_heat_season",
+    "shield_score"
+  ],
+  "risk_bands": [
+    "high",
+    "low",
+    "medium"
+  ],
+  "use_case": "Registration-time risk classification"
+}

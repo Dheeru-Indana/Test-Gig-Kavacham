@@ -1,0 +1,27 @@
+{
+  "model": "RandomForest_DualHead_Fallback",
+  "dcs_mae": 2.51,
+  "dcs_r2": 0.9711,
+  "prob_mae": 0.0228,
+  "features": [
+    "rainfall_score",
+    "aqi_score",
+    "heat_score",
+    "order_drop_score",
+    "social_score",
+    "tier_enc",
+    "month_of_year",
+    "hour_of_day",
+    "day_of_week",
+    "is_monsoon",
+    "is_heat_season",
+    "prev_rainfall",
+    "prev_aqi",
+    "prev_heat",
+    "current_dcs",
+    "prev_dcs",
+    "dcs_trend",
+    "hist_avg_dcs"
+  ],
+  "prophet_trend": 54.94
+}
