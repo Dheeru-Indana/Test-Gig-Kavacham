@@ -162,9 +162,11 @@ export function AIAssistant() {
     if (!finalIntent) {
       const matched = classifyIntent(text, INTENT_KNOWLEDGE);
       if (matched) {
-        finalIntent = matched.role; // This seems to be the intent in the knowledge base
+        finalIntent = matched.intent;
       }
     }
+
+    console.log(`[AI Chat] Query: "${text}" | Detected Intent: ${finalIntent || 'None'}`);
 
     const matchedKnowledge = INTENT_KNOWLEDGE.find(k => k.intent === finalIntent);
 

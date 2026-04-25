@@ -18,15 +18,15 @@ export const classifyIntent = (
     for (const tag of item.tags) {
       const tagWords = tag.toLowerCase().split(/\s+/)
 
-      // Exact phrase match — high weight
+      // Exact phrase match — very high weight
       if (input.join(' ').includes(tag.toLowerCase())) {
-        score += 10
+        score += 15
       }
 
-      // Individual word matches — medium weight
+      // Individual word matches — increased weight
       for (const word of tagWords) {
         if (input.includes(word) && word.length > 3) {
-          score += 3
+          score += 5
         }
       }
 

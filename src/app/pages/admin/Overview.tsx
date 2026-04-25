@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '../../components/ui/card';
 import { AdminLayout } from '../../components/AdminLayout';
 import { TrendingUp, TrendingDown, Users, IndianRupee, AlertCircle, Activity, PlayCircle, Shield, Brain, Cpu, Zap, RefreshCw } from 'lucide-react';
@@ -57,8 +57,9 @@ export default function AdminOverview() {
 
       const { data: activePolicies, error: policyError } = await supabase
         .from('policies')
-        .select('*')
-        .eq('status', 'ACTIVE');
+        .select('*'); // Select all to avoid column missing errors if only some are requested
+        // Filter in JS to be safe
+        const filteredPolicies = (activePolicies || []).filter(p => p.status === 'ACTIVE');
 
       if (policyError) {
         console.error('[Admin] Policy fetch DETAILS:', policyError);
@@ -67,7 +68,7 @@ export default function AdminOverview() {
 
       if (data) {
         const workersList = data.map(p => {
-          const policy = activePolicies?.find(po => po.user_id === p.id);
+          const policy = filteredPolicies?.find(po => po.user_id === p.id);
           return { ...p, policy };
         });
         
@@ -96,7 +97,7 @@ export default function AdminOverview() {
         { id: crypto.randomUUID(), full_name: 'Prakash G', email: 'prakash@demo.com', role: 'user', city: 'Bangalore', zone: 'Indiranagar', city_tier: 'Tier 1' }
       ];
 
-      await supabase.from('profiles').insert(demoUsers);
+      await supabase.from('profiles').upsert(demoUsers, { onConflict: 'id' });
 
       // 2. Assign policies
       const demoPolicies = demoUsers.map(u => ({
@@ -112,7 +113,7 @@ export default function AdminOverview() {
         zone: u.zone
       }));
 
-      await supabase.from('policies').insert(demoPolicies);
+      await supabase.from('policies').upsert(demoPolicies, { onConflict: 'user_id' });
       
       toast.dismiss();
       toast.success('Demo workers created successfully!');
@@ -124,6 +125,24 @@ export default function AdminOverview() {
       setIsSimulating(false);
     }
   };
+
+  const fetchLiveOps = useCallback(async () => {
+    const [policyRes, userRes, payoutsRes] = await Promise.all([
+      supabase.from('policies').select('weekly_premium, weekly_payout_cap, status'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('payouts').select('amount, status'),
+    ]);
+
+    const activePolicies = (policyRes.data || []).filter(p => p.status === 'ACTIVE');
+    setActivePolicyCount(activePolicies.length || 1);
+    setTotalWorkers(userRes.count || 1);
+    setWeeklyPremiumIncome(activePolicies.reduce((s, p) => s + (p.weekly_premium || 0), 0));
+    setWeeklyPayoutExposure(activePolicies.reduce((s, p) => s + (p.weekly_payout_cap || 0), 0));
+
+    const creditedPayouts = (payoutsRes.data || []).filter(p => p.status === 'credited' || p.status === 'Credited');
+    setTotalClaimsPaid(creditedPayouts.reduce((s, p) => s + (p.amount || 0), 0));
+    setTotalClaimsCount(creditedPayouts.length);
+  }, []);
 
   useEffect(() => {
     fetchWorkers();
@@ -137,25 +156,8 @@ export default function AdminOverview() {
   }, [selectedWorkerId, workers]);
 
   useEffect(() => {
-    async function fetchLiveOps() {
-      const [policyRes, userRes, payoutsRes] = await Promise.all([
-        supabase.from('policies').select('weekly_premium, weekly_payout_cap, status'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('payouts').select('amount, status'),
-      ]);
-
-      const activePolicies = (policyRes.data || []).filter(p => p.status === 'ACTIVE');
-      setActivePolicyCount(activePolicies.length || 1);
-      setTotalWorkers(userRes.count || 1);
-      setWeeklyPremiumIncome(activePolicies.reduce((s, p) => s + (p.weekly_premium || 0), 0));
-      setWeeklyPayoutExposure(activePolicies.reduce((s, p) => s + (p.weekly_payout_cap || 0), 0));
-
-      const creditedPayouts = (payoutsRes.data || []).filter(p => p.status === 'credited' || p.status === 'Credited');
-      setTotalClaimsPaid(creditedPayouts.reduce((s, p) => s + (p.amount || 0), 0));
-      setTotalClaimsCount(creditedPayouts.length);
-    }
     fetchLiveOps();
-  }, []);
+  }, [fetchLiveOps]);
 
   // Portfolio Health
   const coverageRatio = weeklyPayoutExposure > 0 ? (weeklyPremiumIncome / weeklyPayoutExposure) * 100 : 0;
@@ -205,105 +207,154 @@ export default function AdminOverview() {
     setSimAffectedWorkers(0);
     setSimTotalAmount(0);
 
-    // Step 1: Counting animation
-    let count = 0;
-    await new Promise<void>(resolve => {
-      const interval = setInterval(() => {
-        count += Math.floor(Math.random() * 50) + 12;
-        setPoliciesChecked(Math.min(count, 142));
-        if (count >= 142) { clearInterval(interval); resolve(); }
-      }, 50);
-    });
-
-    // Step 2: Set disruption state
-    setDisruptionState({
-      dcs: 85,
-      status: 'triggered',
-      pipelineStatus: 'IDLE',
-      rainfall: type === 'success' ? 5 : 65,
-      aqi: type === 'success' ? 420 : 85,
-      orderDrop: 45,
-      simulationType: type,
-      insight: 'Supervised Disruption Simulation'
-    });
-
-    // Step 3: Pipeline steps
-    setSimPipelineSteps(p => ({ ...p, trigger: true }));
-    await new Promise(r => setTimeout(r, 600));
-
-    // Find affected workers
-    const { data: usersWithPolicies } = await supabase.from('policies').select('user_id, weekly_payout_cap, plan_name, zone').eq('status', 'ACTIVE');
-    const affected = usersWithPolicies || [];
-    setSimAffectedWorkers(affected.length);
-    setSimPipelineSteps(p => ({ ...p, policy: true }));
-    await new Promise(r => setTimeout(r, 600));
-
-    // Fraud check
-    const workerToSimulate = targetWorker || (affected.length > 0 ? { id: affected[0].user_id, policy: affected[0] } : null);
-    if (!workerToSimulate) {
-      setIsSimulating(false);
-      toast.error('No active workers found to simulate.');
-      return;
-    }
-
-    const claimType = type === 'fraud_fail' ? 'fraudulent' as const : 'clean' as const;
-    const signals = generateFraudSignals(claimType, workerToSimulate.policy?.zone || 'live-zone', new Date().getMonth() + 1);
-    const fraudResult = computeFraudScore(signals);
-    const fraudDecision = type === 'fraud_fail' ? 'fail' as const : 'pass' as const;
-    setSimPipelineSteps(p => ({ ...p, fraud: true }));
-    await new Promise(r => setTimeout(r, 400));
-
-    // Payout for selected local worker
-    const workerId = workerToSimulate.id;
-    const policy = workerToSimulate.policy || {
-        plan_name: 'Shield Lite (Auto)',
-        weekly_payout_cap: 1200,
-        zone: workerToSimulate.zone || 'General'
-    };
-    
-    const amount = Math.min(policy.weekly_payout_cap || 1500, 350 + Math.round(Math.random() * 500));
-    setSimTotalAmount(amount);
-
-    const finalResult = await simulatePayout({
-      userId: workerId,
-      claimId: `SIM-${Date.now()}`,
-      amount,
-      upiId: 'worker@upi',
-      planName: policy?.plan_name || 'Shield',
-      triggerType: type === 'success' ? 'AQI Hazard' : 'Fraud Test',
-      dcsScore: 85,
-      fraudDecision: type === 'payout_fail' ? 'pass' : fraudDecision,
-    }, (update) => setSimPayoutResult(update));
-
-    // If credited, insert into Supabase
-    if (finalResult.status === 'credited') {
-      // Create disruption event for the zone
-      await supabase.from('disruption_events').insert({
-        event_type: type === 'success' ? 'AQI_HAZARD' : 'SIMULATION',
-        dcs_score: 85,
-        affected_zones: [policy?.zone || 'General'],
-        is_active: true
+    try {
+      // Step 1: Counting animation
+      let count = 0;
+      await new Promise<void>(resolve => {
+        const interval = setInterval(() => {
+          count += Math.floor(Math.random() * 50) + 12;
+          setPoliciesChecked(Math.min(count, 142));
+          if (count >= 142) { clearInterval(interval); resolve(); }
+        }, 50);
       });
 
-      await supabase.from('payouts').insert({
-        user_id: workerId,
-        amount: finalResult.amount,
-        status: 'credited',
-        reason: type === 'success' ? 'AQI Hazard — Simulated' : 'Simulation Event',
-        transaction_id: finalResult.transactionId,
-        created_at: finalResult.timestamp,
+      // Step 2: Set disruption state
+      setDisruptionState({
+        dcs: 85,
+        status: 'triggered',
+        pipelineStatus: 'IDLE',
+        rainfall: type === 'success' ? 5 : 65,
+        aqi: type === 'success' ? 420 : 85,
+        orderDrop: 45,
+        simulationType: type,
+        insight: 'Supervised Disruption Simulation'
       });
+
+      // Step 3: Pipeline steps
+      setSimPipelineSteps(p => ({ ...p, trigger: true }));
+      await new Promise(r => setTimeout(r, 600));
+
+      // Find affected workers
+      console.log('[Sim] Fetching active policies...');
+      const { data: usersWithPolicies, error: affError } = await supabase.from('policies').select('*').eq('status', 'ACTIVE');
+      if (affError) {
+        console.error('[Sim] Error fetching affected policies:', affError);
+        toast.error(`Policy fetch failed: ${affError.message}`);
+      }
       
-      await createNotification(
-        workerId,
-        'payout_credited',
-        '💰 Payout Credited',
-        `₹${finalResult.amount.toLocaleString('en-IN')} credited to your UPI. Transaction: ${finalResult.transactionId}`
-      );
-    }
+      const affected = usersWithPolicies || [];
+      setSimAffectedWorkers(affected.length);
+      setSimPipelineSteps(p => ({ ...p, policy: true }));
+      await new Promise(r => setTimeout(r, 600));
 
-    setIsSimulating(false);
-    toast.success('Simulation complete! Check Worker App for live updates.');
+      // Fraud check
+      // Selection
+      const workerToSimulate = targetWorker || (affected.length > 0 ? { id: affected[0].user_id, policy: affected[0] } : null);
+      if (!workerToSimulate) {
+        setIsSimulating(false);
+        toast.error('No active workers found. Please create a policy for a worker first.');
+        return;
+      }
+
+      console.log('[Sim] Simulation targeting worker:', workerToSimulate.id);
+
+      // Verify Policy Status (No payout if PAUSED)
+      if (workerToSimulate.policy?.status !== 'ACTIVE') {
+        setIsSimulating(false);
+        toast.error(`Simulation Halted: Worker's policy is ${workerToSimulate.policy?.status || 'INACTIVE'}. Payouts cannot be triggered.`);
+        return;
+      }
+
+      const claimType = type === 'fraud_fail' ? 'fraudulent' as const : 'clean' as const;
+      const signals = generateFraudSignals(claimType, workerToSimulate.policy?.zone || 'live-zone', new Date().getMonth() + 1);
+      const fraudResult = computeFraudScore(signals);
+      const fraudDecision = type === 'fraud_fail' ? 'fail' as const : 'pass' as const;
+      setSimPipelineSteps(p => ({ ...p, fraud: true }));
+      await new Promise(r => setTimeout(r, 400));
+
+      // Payout for selected local worker
+      const workerId = workerToSimulate.id;
+      const policy = workerToSimulate.policy || {
+          plan_name: 'Shield Lite (Auto)',
+          weekly_payout_cap: 1200,
+          zone: workerToSimulate.zone || 'General'
+      };
+      
+      const amount = Math.min(policy.weekly_payout_cap || 1500, 350 + Math.round(Math.random() * 500));
+      setSimTotalAmount(amount);
+
+      console.log('[Sim] Starting payout simulation...');
+      const finalResult = await simulatePayout({
+        userId: workerId,
+        claimId: `SIM-${Date.now()}`,
+        amount,
+        upiId: 'worker@upi',
+        planName: policy?.plan_name || 'Shield',
+        triggerType: type === 'success' ? 'AQI Hazard' : 'Fraud Test',
+        dcsScore: 85,
+        fraudDecision: type === 'payout_fail' ? 'pass' : fraudDecision,
+      }, (update) => setSimPayoutResult(update));
+
+      // If credited, insert into Supabase
+      if (finalResult.status === 'credited') {
+        console.log('[Sim] Payout successful. Updating database...');
+        
+        // 1. Insert into Payouts
+        const { error: pErr } = await supabase.from('payouts').insert({
+          user_id: workerId,
+          amount: finalResult.amount,
+          status: 'credited',
+          reason: type === 'success' ? 'AQI Hazard — Simulated' : 'Simulation Event',
+          transaction_id: finalResult.transactionId,
+          created_at: finalResult.timestamp,
+        });
+        if (pErr) console.error('[Sim] Payout insert failed:', pErr);
+
+        // 2. Insert into Claims (For the Ledger)
+        const { error: cErr } = await supabase.from('claims').insert({
+          user_id: workerId,
+          status: 'paid',
+          trigger_type: type === 'success' ? 'AQI Hazard' : 'Simulation',
+          dcs_score: 85,
+          amount: finalResult.amount,
+          zone: policy?.zone || 'General',
+          fraud_score: fraudResult.score,
+          fraud_decision: 'pass',
+          created_at: finalResult.timestamp
+        });
+        if (cErr) console.error('[Sim] Claim insert failed:', cErr);
+        
+        await createNotification(
+          workerId,
+          'payout_credited',
+          '💰 Payout Credited',
+          `₹${finalResult.amount.toLocaleString('en-IN')} credited to your UPI. Transaction: ${finalResult.transactionId}`
+        );
+      } else if (type === 'fraud_fail') {
+          console.log('[Sim] Fraud detected. Logging flagged claim...');
+          await supabase.from('claims').insert({
+            user_id: workerId,
+            status: 'flagged',
+            trigger_type: 'Fraud Simulation',
+            dcs_score: 85,
+            amount: amount,
+            zone: policy?.zone || 'General',
+            fraud_score: fraudResult.score,
+            fraud_decision: 'fail',
+            created_at: new Date().toISOString()
+          });
+      }
+
+      // Refresh Dashboard Stats
+      await fetchLiveOps();
+      toast.success('Simulation complete! Check Worker App and Claims Ledger for updates.');
+
+    } catch (err: any) {
+      console.error('[Sim] Simulation crashed:', err);
+      toast.error(`Simulation failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   return (

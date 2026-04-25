@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function PolicyManagement() {
   const navigate = useNavigate();
-  const { user, profile: userData, setProfile: setUserData, activePolicy, refetchActivePolicy, refetchNotifications } = useApp();
+  const { user, profile: userData, setProfile: setUserData, activePolicy, refreshPolicy, refreshProfile } = useApp();
   
   const selectedPlan = PLANS.find((p) => p.id === activePolicy?.plan_id || p.id === userData?.selectedPlan);
   const isPaused = activePolicy?.status === 'PAUSED';
@@ -29,7 +29,7 @@ export default function PolicyManagement() {
     if (isPaused) {
       await supabase.from('policies').update({ status: 'ACTIVE' }).eq('id', activePolicy.id).eq('user_id', user.id);
       await new Promise(r => setTimeout(r, 500));
-      await refetchActivePolicy();
+      await refreshPolicy();
       await supabase.from('notifications').insert({
         user_id: user.id,
         type: 'policy_resumed',
@@ -38,12 +38,11 @@ export default function PolicyManagement() {
         read: false,
         created_at: new Date().toISOString(),
       });
-      if (typeof refetchNotifications === 'function') refetchNotifications();
       toast.success('Protection resumed');
     } else {
       await supabase.from('policies').update({ status: 'PAUSED' }).eq('id', activePolicy.id).eq('user_id', user.id);
       await new Promise(r => setTimeout(r, 500));
-      await refetchActivePolicy();
+      await refreshPolicy();
       await supabase.from('notifications').insert({
         user_id: user.id,
         type: 'policy_paused',
@@ -52,7 +51,6 @@ export default function PolicyManagement() {
         read: false,
         created_at: new Date().toISOString(),
       });
-      if (typeof refetchNotifications === 'function') refetchNotifications();
       toast.warning('Protection paused. No payouts will trigger.');
     }
   };
@@ -61,38 +59,58 @@ export default function PolicyManagement() {
     if (user && userData && planToChange) {
       setIsProcessing(true);
       try {
-        const { error } = await supabase
-          .from('policies')
-          .update({
-            plan_name: planToChange.name,
-            weekly_premium: planToChange.weeklyPremium,
-            coverage_amount: planToChange.coverageAmount,
-            weekly_payout_cap: planToChange.weeklyPayoutCap,
-            status: 'ACTIVE'
-          })
-          .eq('user_id', user.id)
-          .eq('id', activePolicy.id);
+        console.log('[Policy] Switching plan to:', planToChange.id);
+        
+        // Use upsert to handle both new and existing policies
+        const policyData = {
+          user_id: user.id,
+          plan_id: planToChange.id,
+          plan_name: planToChange.name,
+          weekly_premium: planToChange.weeklyPremium,
+          coverage_amount: planToChange.coverageAmount,
+          weekly_payout_cap: planToChange.weeklyPayoutCap,
+          status: 'ACTIVE'
+        };
 
-        if (error) throw error;
+        let query = supabase.from('policies');
+        let error;
 
+        if (activePolicy?.id) {
+          console.log('[Policy] Updating existing policy:', activePolicy.id);
+          const res = await query.update(policyData).eq('id', activePolicy.id);
+          error = res.error;
+        } else {
+          console.log('[Policy] Creating new policy via upsert');
+          const res = await query.upsert(policyData, { onConflict: 'user_id' });
+          error = res.error;
+        }
+
+        if (error) {
+          console.error('[Policy] Supabase error:', error);
+          throw error;
+        }
+
+        const oldPlanName = activePolicy?.plan_name || 'No Plan';
+        
         await supabase.from('notifications').insert({
           user_id: user.id,
           type: 'policy_upgraded',
           title: '⬆️ Plan Updated',
-          message: `Switched from ${activePolicy.plan_name} to ${planToChange.name}. New weekly premium: ₹${planToChange.weeklyPremium}. New coverage: ${planToChange.coverageAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}. New weekly payout cap: ${planToChange.weeklyPayoutCap.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}.`,
+          message: `Switched from ${oldPlanName} to ${planToChange.name}. New weekly premium: ₹${planToChange.weeklyPremium}. New coverage: ₹${planToChange.coverageAmount.toLocaleString()}.`,
           read: false,
           created_at: new Date().toISOString(),
         });
+        
         if (typeof refetchNotifications === 'function') refetchNotifications();
 
         setUserData({ ...userData, selectedPlan: planToChange.id });
         await new Promise(r => setTimeout(r, 800));
-        await refetchActivePolicy();
+        await refreshPolicy();
         toast.success(`Plan changed to ${planToChange.name}`);
         setPlanToChange(null);
-      } catch (err) {
-        toast.error('Failed to change plan.');
-        console.error(err);
+      } catch (err: any) {
+        toast.error(`Failed to change plan: ${err.message || 'Check connection'}`);
+        console.error('[Policy] Change failed:', err);
       } finally {
         setIsProcessing(false);
       }
@@ -119,9 +137,9 @@ export default function PolicyManagement() {
             created_at: new Date().toISOString(),
           });
           toast.warning(`${activePolicy.plan_name} cancelled. You are no longer protected.`);
-          if (typeof refetchNotifications === 'function') refetchNotifications();
+          // await refreshProfile();
           await new Promise(r => setTimeout(r, 500));
-          await refetchActivePolicy();
+          await refreshPolicy();
           setShowCancelModal(false);
         }
       } catch (err) {

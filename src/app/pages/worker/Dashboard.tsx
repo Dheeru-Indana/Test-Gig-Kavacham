@@ -297,7 +297,12 @@ export default function Dashboard() {
           {/* ═══ LIVE PAYOUT PIPELINE (when active) ═══ */}
           <AnimatePresence>
             {livePayout && (
-              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <motion.div 
+                key="live-payout-panel"
+                initial={{ opacity: 0, y: -20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -20 }}
+              >
                 <PayoutPipeline
                   payoutResult={livePayout}
                   triggerVerified={true}

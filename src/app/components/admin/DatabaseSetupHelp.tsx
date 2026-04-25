@@ -2,49 +2,78 @@ import { useState } from 'react';
 import { Terminal, Copy, Check, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../ui/utils';
+import { supabase } from '../../lib/supabaseClient';
+import { toast } from 'sonner';
 
 export function DatabaseSetupHelp() {
   const [copied, setCopied] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const sqlCode = `-- 🛡️ GigKavacham Supabase RLS Setup (REVISED)
--- Run this in your Supabase SQL Editor to fix 'Infinite Recursion'
+  const sqlCode = `-- 🛡️ GigKavacham Supabase Full Setup (ROLE-BASED)
+-- Run this in your Supabase SQL Editor
 
--- 1. Enable RLS on core tables
+-- 1. Create Claims Table (If missing)
+CREATE TABLE IF NOT EXISTS claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id),
+  policy_id UUID,
+  status TEXT DEFAULT 'processing',
+  trigger_type TEXT,
+  dcs_score INTEGER,
+  amount NUMERIC,
+  zone TEXT,
+  fraud_score INTEGER,
+  fraud_decision TEXT DEFAULT 'pass',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Create Payouts Table (If missing)
+CREATE TABLE IF NOT EXISTS payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id),
+  claim_id UUID,
+  amount NUMERIC,
+  status TEXT DEFAULT 'processing',
+  reason TEXT,
+  upi_id TEXT,
+  payout_method TEXT DEFAULT 'UPI',
+  transaction_id TEXT,
+  settlement_duration_minutes INTEGER,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Ensure role column exists and set YOUR account as admin
+-- REPLACE 'your-user-id-here' with your actual ID from the Profiles table
+-- UPDATE profiles SET role = 'admin' WHERE id = 'your-user-id-here';
+
+-- 3. Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE policies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE claims ENABLE ROW LEVEL SECURITY;
 
--- 2. Drop the recursive policies that are causing errors
-DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
-DROP POLICY IF EXISTS "Admins can manage all policies" ON policies;
-DROP POLICY IF EXISTS "Admins can view all payouts" ON payouts;
+-- 4. Drop existing policies
+DROP POLICY IF EXISTS "Admin Full Access Profiles" ON profiles;
+DROP POLICY IF EXISTS "Admin Full Access Policies" ON policies;
+DROP POLICY IF EXISTS "Admin Full Access Payouts" ON payouts;
+DROP POLICY IF EXISTS "Admin Full Access Claims" ON claims;
 
--- 3. Create NEW safe policies using JWT email (Avoids recursion)
-CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    (auth.jwt() ->> 'email') = 'admin@gigkavacham.com' OR auth.uid() = id
-  );
+-- 5. Create ROLE-BASED policies
+-- These policies check if the user's role in 'profiles' is 'admin'
+CREATE POLICY "Admin Access Profiles" ON profiles FOR ALL 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin') OR auth.uid() = id);
 
-CREATE POLICY "Admins can update profiles" ON profiles
-  FOR UPDATE USING (
-    (auth.jwt() ->> 'email') = 'admin@gigkavacham.com' OR auth.uid() = id
-  );
+CREATE POLICY "Admin Access Policies" ON policies FOR ALL 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin') OR auth.uid() = user_id);
 
-CREATE POLICY "Admins can manage policies" ON policies
-  FOR ALL USING (
-    (auth.jwt() ->> 'email') = 'admin@gigkavacham.com' OR auth.uid() = user_id
-  );
+CREATE POLICY "Admin Access Payouts" ON payouts FOR ALL 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin') OR auth.uid() = user_id);
 
-CREATE POLICY "Admins can view payouts" ON payouts
-  FOR SELECT USING (
-    (auth.jwt() ->> 'email') = 'admin@gigkavacham.com' OR auth.uid() = user_id
-  );
+CREATE POLICY "Admin Access Claims" ON claims FOR ALL 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin') OR auth.uid() = user_id);
 
--- 4. EMERGENCY: Give admin bypass for all operations (Insert/Update/Delete)
-CREATE POLICY "Admin Alpha Access" ON profiles FOR ALL USING ((auth.jwt() ->> 'email') = 'admin@gigkavacham.com');
-CREATE POLICY "Admin Policy Access" ON policies FOR ALL USING ((auth.jwt() ->> 'email') = 'admin@gigkavacham.com');
-CREATE POLICY "Admin Payout Access" ON payouts FOR ALL USING ((auth.jwt() ->> 'email') = 'admin@gigkavacham.com');`;
+-- 6. Public read for profiles (required for mapping names)
+CREATE POLICY "Public Read Profiles" ON profiles FOR SELECT USING (true);`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(sqlCode);
@@ -60,6 +89,20 @@ CREATE POLICY "Admin Payout Access" ON payouts FOR ALL USING ((auth.jwt() ->> 'e
       >
         <AlertCircle className="w-3 h-3" />
         {isOpen ? 'Close Setup Guide' : 'No users showing? Fix Supabase RLS'}
+      </button>
+
+      <button 
+        onClick={async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { error } = await supabase.from('profiles').update({ role: 'admin' }).eq('id', user.id);
+            if (error) toast.error('Failed to promote: ' + error.message);
+            else toast.success('You are now an Admin! Refresh the page.');
+          }
+        }}
+        className="ml-4 px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-[10px] font-bold text-primary-fixed hover:bg-primary/30 transition-all"
+      >
+        ⚡ Promote Me to Admin
       </button>
 
       <AnimatePresence>

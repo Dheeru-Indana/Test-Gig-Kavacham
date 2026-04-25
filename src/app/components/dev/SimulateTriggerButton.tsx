@@ -26,7 +26,8 @@ export default function SimulateTriggerButton({ onComplete }: SimulateTriggerBut
     setShowPanel(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/simulate-trigger`, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE}/api/simulate-trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
@@ -65,8 +66,9 @@ export default function SimulateTriggerButton({ onComplete }: SimulateTriggerBut
 
       <AnimatePresence>
         {showPanel && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div key="simulation-overlay" className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div 
+              key="simulation-modal"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}

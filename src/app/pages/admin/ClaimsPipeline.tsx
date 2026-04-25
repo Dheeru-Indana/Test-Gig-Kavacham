@@ -1,37 +1,105 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 import { Card } from '../../components/ui/card';
 import { AdminLayout } from '../../components/AdminLayout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
-import { Search, Filter, CheckCircle2, AlertTriangle, Download, Database } from 'lucide-react';
+import { Search, Filter, CheckCircle2, AlertTriangle, Download, Database, RefreshCw } from 'lucide-react';
 import { ADMIN_CLAIMS_PIPELINE } from '../../lib/mock-data';
 import { motion } from 'motion/react';
 
 export default function AdminClaimsPipeline() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [claims, setClaims] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettlements = async () => {
+      setLoading(true);
+      try {
+        console.log('[Admin] Fetching all settlements (payouts)...');
+        
+        // Fetch payouts first as they represent the actual money moved
+        const { data: payouts, error: payoutError } = await supabase
+          .from('payouts')
+          .select('*, profiles(full_name, email)')
+          .order('created_at', { ascending: false });
+        
+        if (payoutError) {
+           console.warn('[Admin] Payout join failed, trying separate fetch:', payoutError);
+           // Fallback: fetch payouts only
+           const { data: payoutsOnly, error: pErr } = await supabase
+             .from('payouts')
+             .select('*')
+             .order('created_at', { ascending: false });
+           
+           if (pErr) throw pErr;
+
+           // Fetch profiles for mapping
+           const userIds = [...new Set((payoutsOnly || []).map(p => p.user_id))];
+           const { data: profileData } = await supabase
+             .from('profiles')
+             .select('id, full_name, email')
+             .in('id', userIds);
+           
+           const mappedPayouts = (payoutsOnly || []).map(p => ({
+             ...p,
+             profiles: profileData?.find(prof => prof.id === p.user_id)
+           }));
+
+           processPayouts(mappedPayouts);
+        } else {
+           processPayouts(payouts || []);
+        }
+      } catch (err: any) {
+        console.error('[Admin] Settlement fetch error:', err);
+        toast.error(`Failed to fetch settlements: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const processPayouts = (rawPayouts: any[]) => {
+      console.log('[Admin] Processing settlements:', rawPayouts.length);
+      const mappedClaims = rawPayouts.map(p => ({
+        id: p.id,
+        workerName: p.profiles?.full_name || p.profiles?.email || `User_${p.user_id?.substring(0, 4)}`,
+        workerId: `WK-${p.user_id?.substring(0, 4).toUpperCase()}`,
+        zone: p.reason?.includes('in ') ? p.reason.split('in ').pop() : 'General',
+        triggerType: p.reason?.split(':')[0]?.replace('AUTOMATED SYSTEM', 'Auto-Trigger') || 'Manual Simulation',
+        amount: p.amount || 0,
+        status: p.status === 'credited' || p.status === 'Credited' || p.status === 'paid' ? 'Approved' : 'Flagged',
+        timestamp: p.created_at,
+        fraudFlag: false // Payouts are usually only created after fraud check
+      }));
+      setClaims(mappedClaims);
+    };
+
+    fetchSettlements();
+  }, []);
 
   const filteredClaims = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return ADMIN_CLAIMS_PIPELINE.filter((claim) =>
+    return claims.filter((claim) =>
       claim.workerName.toLowerCase().includes(query) ||
       claim.workerId.toLowerCase().includes(query) ||
       claim.zone.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, claims]);
 
   const stats = useMemo(() => {
     let approved = 0;
     let flagged = 0;
     let amount = 0;
-    ADMIN_CLAIMS_PIPELINE.forEach((claim) => {
+    claims.forEach((claim) => {
       if (claim.status === 'Approved') approved++;
       if (claim.status === 'Flagged') flagged++;
       amount += claim.amount;
     });
     return { approvedCount: approved, flaggedCount: flagged, totalAmount: amount };
-  }, []);
+  }, [claims]);
 
   const { approvedCount, flaggedCount, totalAmount } = stats;
 
@@ -62,10 +130,16 @@ export default function AdminClaimsPipeline() {
               <p className="text-muted-foreground font-medium">Real-time settlement visibility</p>
             </div>
           </div>
-          <Button variant="secondary" className="gap-2 rounded-xl border border-border hover:bg-muted backdrop-blur-md transition-all text-foreground">
-            <Download className="w-4 h-4" />
-            Export Ledger
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm" className="gap-2 rounded-xl border-border bg-card/50 backdrop-blur-sm">
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
+            <Button variant="secondary" className="gap-2 rounded-xl border border-border hover:bg-muted backdrop-blur-md transition-all text-foreground">
+              <Download className="w-4 h-4" />
+              Export Ledger
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -81,7 +155,7 @@ export default function AdminClaimsPipeline() {
               <div className="flex items-center justify-between relative z-10">
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Total Processed</p>
-                  <p className="text-4xl font-bold tracking-tight text-foreground">{ADMIN_CLAIMS_PIPELINE.length}</p>
+                  <p className="text-4xl font-bold tracking-tight text-foreground">{claims.length}</p>
                 </div>
                 <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center shadow-inner">
                   <Database className="w-6 h-6 text-primary" />
@@ -220,7 +294,7 @@ export default function AdminClaimsPipeline() {
                   {filteredClaims.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="h-32 text-center text-muted-foreground font-medium">
-                        No transactions found
+                        {loading ? 'Loading live claims...' : 'No transactions found'}
                       </TableCell>
                     </TableRow>
                   )}
