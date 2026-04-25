@@ -38,126 +38,71 @@ MODEL_DIR = os.path.join(
 models = {}
 
 # ─── Startup: Load All Models ─────────────────────────────
+# ─── Startup: Load All Models ─────────────────────────────
+def load_safe(filename, loader=joblib.load, is_json=False):
+    path = os.path.join(MODEL_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [WARNING] Model file missing: {filename} at {path}")
+        return None
+    try:
+        if is_json:
+            with open(path) as f:
+                return json.load(f)
+        return loader(path)
+    except Exception as e:
+        print(f"  [ERROR] Failed to load {filename}: {e}")
+        return None
+
 def load_models_sync():
-    print('Loading GigKavacham ML models (No-TF Edition)...')
-    # ... (rest of the logic)
-
+    print('Loading GigKavacham ML models (Production Edition)...')
+    
     # Pricing models
-    try:
-        models['pricing'] = joblib.load(
-            os.path.join(MODEL_DIR, 'pricing_model.pkl')
-        )
-        models['pricing_scaler'] = joblib.load(
-            os.path.join(MODEL_DIR, 'pricing_scaler.pkl')
-        )
-        models['pricing_le_tier'] = joblib.load(
-            os.path.join(MODEL_DIR, 'le_city_tier.pkl')
-        )
-        models['pricing_le_platform'] = joblib.load(
-            os.path.join(MODEL_DIR, 'le_platform.pkl')
-        )
-        models['pricing_xgb'] = joblib.load(
-            os.path.join(MODEL_DIR, 'pricing_xgb_shap.pkl')
-        )
-        models['pricing_shap'] = joblib.load(
-            os.path.join(MODEL_DIR, 'pricing_shap_explainer.pkl')
-        )
-        print('  Pricing model loaded')
-    except Exception as e:
-        print(f'  Pricing model failed: {e}')
+    models['pricing'] = load_safe('pricing_model.pkl')
+    models['pricing_scaler'] = load_safe('pricing_scaler.pkl')
+    models['pricing_le_tier'] = load_safe('le_city_tier.pkl')
+    models['pricing_le_platform'] = load_safe('le_platform.pkl')
+    models['pricing_xgb'] = load_safe('pricing_xgb_shap.pkl')
+    models['pricing_shap'] = load_safe('pricing_shap_explainer.pkl')
 
-    # DCS models (Random Forest)
-    try:
-        models['dcs_rf'] = joblib.load(
-            os.path.join(MODEL_DIR, 'dcs_rf_model.pkl')
-        )
-        models['dcs_prob'] = joblib.load(
-            os.path.join(MODEL_DIR, 'dcs_prob_model.pkl')
-        )
-        models['dcs_scaler_x'] = joblib.load(
-            os.path.join(MODEL_DIR, 'dcs_scaler_x.pkl')
-        )
-        models['dcs_le_tier'] = joblib.load(
-            os.path.join(MODEL_DIR, 'dcs_le_tier.pkl')
-        )
-        models['dcs_prophet'] = joblib.load(
-            os.path.join(MODEL_DIR, 'dcs_prophet.pkl')
-        )
-        with open(
-            os.path.join(MODEL_DIR, 'dcs_metrics.json')
-        ) as f:
-            models['dcs_config'] = json.load(f)
-        print('  DCS Random Forest + Prophet loaded')
-    except Exception as e:
-        print(f'  DCS model failed: {e}')
+    # DCS models
+    models['dcs_rf'] = load_safe('dcs_rf_model.pkl')
+    models['dcs_prob'] = load_safe('dcs_prob_model.pkl')
+    models['dcs_scaler_x'] = load_safe('dcs_scaler_x.pkl')
+    models['dcs_le_tier'] = load_safe('dcs_le_tier.pkl')
+    models['dcs_prophet'] = load_safe('dcs_prophet.pkl')
+    models['dcs_config'] = load_safe('dcs_metrics.json', is_json=True)
 
     # Fraud models
-    try:
-        models['fraud_iso'] = joblib.load(
-            os.path.join(MODEL_DIR, 'fraud_isolation_forest.pkl')
-        )
-        models['fraud_xgb'] = joblib.load(
-            os.path.join(MODEL_DIR, 'fraud_xgb_classifier.pkl')
-        )
-        models['fraud_scaler'] = joblib.load(
-            os.path.join(MODEL_DIR, 'fraud_scaler.pkl')
-        )
-        with open(
-            os.path.join(MODEL_DIR, 'fraud_lime_config.json')
-        ) as f:
-            models['fraud_lime_config'] = json.load(f)
-        print('  Fraud models loaded')
-    except Exception as e:
-        print(f'  Fraud model failed: {e}')
+    models['fraud_iso'] = load_safe('fraud_isolation_forest.pkl')
+    models['fraud_xgb'] = load_safe('fraud_xgb_classifier.pkl')
+    models['fraud_scaler'] = load_safe('fraud_scaler.pkl')
+    models['fraud_lime_config'] = load_safe('fraud_lime_config.json', is_json=True)
 
     # Chatbot models
     try:
         print('  Loading SBERT (all-MiniLM-L6-v2)...')
         models['sbert'] = SentenceTransformer('all-MiniLM-L6-v2')
-        models['intent_embeddings'] = joblib.load(
-            os.path.join(MODEL_DIR, 'intent_embeddings.pkl')
-        )
-        models['intent_lr'] = joblib.load(
-            os.path.join(MODEL_DIR, 'intent_lr_model.pkl')
-        )
-        models['intent_le'] = joblib.load(
-            os.path.join(MODEL_DIR, 'intent_label_encoder.pkl')
-        )
-        with open(
-            os.path.join(MODEL_DIR, 'intent_config.json')
-        ) as f:
-            models['intent_config'] = json.load(f)
-        print('  Chatbot SBERT + LR loaded')
+        models['intent_embeddings'] = load_safe('intent_embeddings.pkl')
+        models['intent_lr'] = load_safe('intent_lr_model.pkl')
+        models['intent_le'] = load_safe('intent_label_encoder.pkl')
+        models['intent_config'] = load_safe('intent_config.json', is_json=True)
     except Exception as e:
-        print(f'  Chatbot model failed: {e}')
-        traceback.print_exc()
+        print(f'  Chatbot pipeline failed: {e}')
 
     # Risk scorer
-    try:
-        models['risk_scorer'] = joblib.load(
-            os.path.join(MODEL_DIR, 'risk_scorer_model.pkl')
-        )
-        models['risk_scaler'] = joblib.load(
-            os.path.join(MODEL_DIR, 'risk_scorer_scaler.pkl')
-        )
-        models['risk_le_tier'] = joblib.load(
-            os.path.join(MODEL_DIR, 'risk_scorer_le_tier.pkl')
-        )
-        models['risk_le_platform'] = joblib.load(
-            os.path.join(MODEL_DIR,
-                         'risk_scorer_le_platform.pkl')
-        )
-        models['risk_le_risk'] = joblib.load(
-            os.path.join(MODEL_DIR, 'risk_scorer_le_risk.pkl')
-        )
-        print('  Risk scorer loaded')
-    except Exception as e:
-        print(f'  Risk scorer failed: {e}')
+    models['risk_scorer'] = load_safe('risk_scorer_model.pkl')
+    models['risk_scaler'] = load_safe('risk_scorer_scaler.pkl')
+    models['risk_le_tier'] = load_safe('risk_scorer_le_tier.pkl')
+    models['risk_le_platform'] = load_safe('risk_scorer_le_platform.pkl')
+    models['risk_le_risk'] = load_safe('risk_scorer_le_risk.pkl')
+    
+    loaded_count = len([m for m in models.values() if m is not None])
+    print(f"ML Startup Complete. Loaded {loaded_count} components.")
 
 try:
     load_models_sync()
 except Exception:
-    print("FATAL ERROR DURING MODEL LOADING:")
+    print("CRITICAL ERROR DURING ML STARTUP:")
     traceback.print_exc()
     # Don't exit here, let it fail gracefully so it can start for other models
 
@@ -804,9 +749,11 @@ def score_risk(data: RiskInput):
 # RUN SERVER
 # ──────────────────────────────────────────────────────────
 if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5001))
+    print(f"Starting ML Server on 0.0.0.0:{port}")
     uvicorn.run(
         app,
         host='0.0.0.0',
-        port=5001,
+        port=port,
         reload=False,
     )

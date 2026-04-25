@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/app.js",
     "start-ml": "py -3.10 ml/services/ml_server.py",
     "train-all": "py -3.10 ml/scripts/train_all_models.py",
     "check-ml": "curl http://localhost:5001/health"
